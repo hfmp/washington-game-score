@@ -45,6 +45,11 @@ st.markdown("""
         direction: rtl;
         text-align: right;
     }
+    /* Force RTL for the guide expander content */
+    div[data-testid="stExpander"] div[data-testid="stMarkdownContainer"] {
+        direction: rtl;
+        text-align: right;
+    }
     input[type=number] {
         font-size: 1rem !important;
     }
@@ -57,18 +62,22 @@ st.caption("ساده • کاربردی • مخصوص موبایل")
 # ---------- Guide ----------
 with st.expander("📖 راهنمای استفاده (حتماً بخوانید)", expanded=True):
     st.markdown("""
-**نحوه کار:**
+<div dir="rtl" style="text-align: right; line-height: 1.8;">
 
-1. تعداد بازیکن و اسم‌ها را تنظیم کنید.
-2. در **ابتدای هر دور**، برای هر بازیکن مقدار **Bid (پیشنهاد)** را وارد کنید.
-3. بعد از تمام شدن دور، مقدار **Taken (گرفته‌شده)** را برای هر بازیکن وارد کنید.
-4. امتیاز به صورت خودکار محاسبه می‌شود:
-   - اگر Bid = Taken باشد → امتیاز = ۱۰ + Bid
-   - در غیر این صورت → ۰
-5. دو چک مهم در هر دور نمایش داده می‌شود:
-   - جمع Bidها نباید مساوی تعداد کارت آن دور باشد
-   - حداقل یک نفر باید امتیاز صفر گرفته باشد
-    """)
+<strong>نحوه کار:</strong>
+
+۱. تعداد بازیکن و اسم‌ها را تنظیم کنید.<br>
+۲. در <strong>ابتدای هر دور</strong>، برای هر بازیکن مقدار <strong>Bid (پیشنهاد)</strong> را وارد کنید.<br>
+۳. بعد از تمام شدن دور، مقدار <strong>Taken (گرفته‌شده)</strong> را برای هر بازیکن وارد کنید.<br>
+۴. امتیاز به صورت خودکار محاسبه می‌شود:<br>
+&nbsp;&nbsp;&nbsp;• اگر Bid = Taken باشد → امتیاز = ۱۰ + Bid<br>
+&nbsp;&nbsp;&nbsp;• در غیر این صورت → ۰<br>
+۵. دو چک مهم در هر دور نمایش داده می‌شود:<br>
+&nbsp;&nbsp;&nbsp;• جمع Bidها نباید مساوی تعداد کارت آن دور باشد<br>
+&nbsp;&nbsp;&nbsp;• حداقل یک نفر باید امتیاز صفر گرفته باشد
+
+</div>
+    """, unsafe_allow_html=True)
 
 # ---------- Session State ----------
 if "players" not in st.session_state:
@@ -98,15 +107,14 @@ with st.expander("⚙️ تنظیمات بازی", expanded=False):
 
     st.write("اسم بازیکن‌ها:")
     new_names = []
-    cols = st.columns(2)
+    # Sequential order (1,2,3,4...) instead of odd/even columns
     for i in range(st.session_state.num_players):
-        with cols[i % 2]:
-            name = st.text_input(
-                f"بازیکن {i+1}",
-                value=st.session_state.players[i],
-                key=f"name_{i}"
-            )
-            new_names.append(name.strip() or f"بازیکن {i+1}")
+        name = st.text_input(
+            f"بازیکن {i+1}",
+            value=st.session_state.players[i],
+            key=f"name_{i}"
+        )
+        new_names.append(name.strip() or f"بازیکن {i+1}")
     st.session_state.players = new_names
 
 # Determine rounds
@@ -138,7 +146,6 @@ for idx, cards in enumerate(card_counts):
             if p not in st.session_state.rounds_data[cards]:
                 st.session_state.rounds_data[cards][p] = {"call": None, "taken": None}
 
-        # Mobile-friendly vertical layout per player
         calls = []
         takens = []
         scores = []
