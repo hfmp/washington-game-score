@@ -8,40 +8,45 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ---------- Custom CSS for clean mobile look ----------
+# ---------- Custom CSS ----------
 st.markdown("""
 <style>
     .stApp {
-        max-width: 900px;
+        max-width: 700px;
         margin: auto;
     }
     h1 {
         text-align: center;
         color: #1F4E79;
-        font-size: 1.8rem !important;
+        font-size: 1.7rem !important;
+        margin-bottom: 0.2rem;
     }
     .block-container {
-        padding-top: 1.5rem;
+        padding-top: 1.2rem;
         padding-bottom: 2rem;
     }
     div[data-testid="stMetric"] {
         background-color: #f0f7ff;
         border: 1px solid #d0e3f7;
         border-radius: 10px;
-        padding: 10px;
+        padding: 8px 12px;
     }
     .score-ok {
         color: #006100;
         font-weight: bold;
+        font-size: 1.15rem;
     }
     .score-zero {
         color: #9C0006;
         font-weight: bold;
+        font-size: 1.15rem;
     }
-    /* Better RTL support for messages */
     .stAlert {
         direction: rtl;
         text-align: right;
+    }
+    input[type=number] {
+        font-size: 1rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -49,49 +54,66 @@ st.markdown("""
 st.title("🃏 امتیازدهی بازی واشنگتن")
 st.caption("ساده • کاربردی • مخصوص موبایل")
 
+# ---------- Guide ----------
+with st.expander("📖 راهنمای استفاده (حتماً بخوانید)", expanded=True):
+    st.markdown("""
+**نحوه کار:**
+
+1. تعداد بازیکن و اسم‌ها را تنظیم کنید.
+2. در **ابتدای هر دور**، برای هر بازیکن مقدار **Bid (پیشنهاد)** را وارد کنید.
+3. بعد از تمام شدن دور، مقدار **Taken (گرفته‌شده)** را برای هر بازیکن وارد کنید.
+4. امتیاز به صورت خودکار محاسبه می‌شود:
+   - اگر Bid = Taken باشد → امتیاز = ۱۰ + Bid
+   - در غیر این صورت → ۰
+5. دو چک مهم در هر دور نمایش داده می‌شود:
+   - جمع Bidها نباید مساوی تعداد کارت آن دور باشد
+   - حداقل یک نفر باید امتیاز صفر گرفته باشد
+    """)
+
 # ---------- Session State ----------
 if "players" not in st.session_state:
     st.session_state.players = ["بازیکن ۱", "بازیکن ۲", "بازیکن ۳", "بازیکن ۴", "بازیکن ۵"]
 if "num_players" not in st.session_state:
     st.session_state.num_players = 5
 if "rounds_data" not in st.session_state:
-    st.session_state.rounds_data = {}  # {cards: {player: {"call": None, "taken": None}}}
+    st.session_state.rounds_data = {}
 
 # ---------- Settings ----------
-with st.expander("⚙️ تنظیمات بازی", expanded=True):
-    col1, col2 = st.columns([1, 2])
-    
-    with col1:
-        num = st.radio("تعداد بازیکن", [5, 6], index=0 if st.session_state.num_players == 5 else 1, horizontal=True)
-        if num != st.session_state.num_players:
-            st.session_state.num_players = num
-            if num == 5:
-                st.session_state.players = st.session_state.players[:5]
-            else:
-                while len(st.session_state.players) < 6:
-                    st.session_state.players.append(f"بازیکن {len(st.session_state.players)+1}")
-            st.rerun()
-    
-    with col2:
-        st.write("اسم بازیکن‌ها:")
-        new_names = []
-        name_cols = st.columns(st.session_state.num_players)
-        for i in range(st.session_state.num_players):
-            with name_cols[i]:
-                name = st.text_input(
-                    f"P{i+1}",
-                    value=st.session_state.players[i],
-                    key=f"name_{i}",
-                    label_visibility="collapsed"
-                )
-                new_names.append(name.strip() or f"بازیکن {i+1}")
-        st.session_state.players = new_names
+with st.expander("⚙️ تنظیمات بازی", expanded=False):
+    num = st.radio(
+        "تعداد بازیکن",
+        options=[5, 6],
+        format_func=lambda x: "۵ نفره" if x == 5 else "۶ نفره",
+        index=0 if st.session_state.num_players == 5 else 1,
+        horizontal=True
+    )
+    if num != st.session_state.num_players:
+        st.session_state.num_players = num
+        if num == 5:
+            st.session_state.players = st.session_state.players[:5]
+        else:
+            while len(st.session_state.players) < 6:
+                st.session_state.players.append(f"بازیکن {len(st.session_state.players)+1}")
+        st.rerun()
+
+    st.write("اسم بازیکن‌ها:")
+    new_names = []
+    cols = st.columns(2)
+    for i in range(st.session_state.num_players):
+        with cols[i % 2]:
+            name = st.text_input(
+                f"بازیکن {i+1}",
+                value=st.session_state.players[i],
+                key=f"name_{i}"
+            )
+            new_names.append(name.strip() or f"بازیکن {i+1}")
+    st.session_state.players = new_names
 
 # Determine rounds
 if st.session_state.num_players == 5:
-    card_counts = list(range(10, 0, -1))  # 10 → 1
+    card_counts = list(range(10, 0, -1))
 else:
-    card_counts = list(range(9, 0, -1))   # 9 → 1
+    card_counts = list(range(9, 0, -1))
 
 st.divider()
 
@@ -106,117 +128,92 @@ total_scores = {p: 0 for p in st.session_state.players}
 for idx, cards in enumerate(card_counts):
     with tabs[idx]:
         st.markdown(f"**دور با {cards} کارت**")
-        
-        # Initialize data for this round if needed
+
         if cards not in st.session_state.rounds_data:
             st.session_state.rounds_data[cards] = {
                 p: {"call": None, "taken": None} for p in st.session_state.players
             }
-        
-        # Ensure all current players exist in data
+
         for p in st.session_state.players:
             if p not in st.session_state.rounds_data[cards]:
                 st.session_state.rounds_data[cards][p] = {"call": None, "taken": None}
-        
-        # Header
-        header_cols = st.columns([2] + [1]*st.session_state.num_players)
-        header_cols[0].markdown("**بازیکن**")
-        for i, p in enumerate(st.session_state.players):
-            header_cols[i+1].markdown(f"**{p}**")
-        
-        # Call row - default empty (None)
-        call_cols = st.columns([2] + [1]*st.session_state.num_players)
-        call_cols[0].markdown("Call")
+
+        # Mobile-friendly vertical layout per player
         calls = []
-        for i, p in enumerate(st.session_state.players):
-            current = st.session_state.rounds_data[cards][p]["call"]
-            # Use None as default so the field starts empty
-            new_val = call_cols[i+1].number_input(
-                f"call_{cards}_{i}",
-                min_value=0,
-                max_value=cards,
-                value=current if current is not None else None,
-                key=f"call_{cards}_{p}",
-                label_visibility="collapsed",
-                placeholder="—"
-            )
-            st.session_state.rounds_data[cards][p]["call"] = new_val
-            calls.append(new_val)
-        
-        # Taken row - default empty
-        taken_cols = st.columns([2] + [1]*st.session_state.num_players)
-        taken_cols[0].markdown("Taken")
         takens = []
-        for i, p in enumerate(st.session_state.players):
-            current = st.session_state.rounds_data[cards][p]["taken"]
-            new_val = taken_cols[i+1].number_input(
-                f"taken_{cards}_{i}",
-                min_value=0,
-                max_value=cards,
-                value=current if current is not None else None,
-                key=f"taken_{cards}_{p}",
-                label_visibility="collapsed",
-                placeholder="—"
-            )
-            st.session_state.rounds_data[cards][p]["taken"] = new_val
-            takens.append(new_val)
-        
-        # Calculate scores only when both Call and Taken are filled
         scores = []
-        filled_count = 0
-        for call, taken in zip(calls, takens):
-            if call is not None and taken is not None:
-                filled_count += 1
-                if call == taken:
-                    score = 10 + call
+
+        for i, p in enumerate(st.session_state.players):
+            st.markdown(f"**{p}**")
+            c1, c2, c3 = st.columns([1, 1, 1])
+
+            with c1:
+                current_call = st.session_state.rounds_data[cards][p]["call"]
+                new_call = st.number_input(
+                    "Bid (پیشنهاد)",
+                    min_value=0,
+                    max_value=cards,
+                    value=current_call if current_call is not None else None,
+                    key=f"call_{cards}_{p}",
+                    placeholder="—"
+                )
+                st.session_state.rounds_data[cards][p]["call"] = new_call
+                calls.append(new_call)
+
+            with c2:
+                current_taken = st.session_state.rounds_data[cards][p]["taken"]
+                new_taken = st.number_input(
+                    "Taken (گرفته‌شده)",
+                    min_value=0,
+                    max_value=cards,
+                    value=current_taken if current_taken is not None else None,
+                    key=f"taken_{cards}_{p}",
+                    placeholder="—"
+                )
+                st.session_state.rounds_data[cards][p]["taken"] = new_taken
+                takens.append(new_taken)
+
+            with c3:
+                if new_call is not None and new_taken is not None:
+                    score = 10 + new_call if new_call == new_taken else 0
                 else:
-                    score = 0
-            else:
-                score = None
-            scores.append(score)
-        
-        # Update total only with valid scores
-        for p, score in zip(st.session_state.players, scores):
+                    score = None
+                scores.append(score)
+
+                if score is None:
+                    st.markdown("<div style='padding-top:1.7rem; color:#999; text-align:center'>—</div>", unsafe_allow_html=True)
+                else:
+                    color = "score-ok" if score > 0 else "score-zero"
+                    st.markdown(
+                        f"<div class='{color}' style='padding-top:1.7rem; text-align:center'>{score}</div>",
+                        unsafe_allow_html=True
+                    )
+
             if score is not None:
                 total_scores[p] += score
-        
-        # Show scores
-        score_cols = st.columns([2] + [1]*st.session_state.num_players)
-        score_cols[0].markdown("**امتیاز**")
-        for i, score in enumerate(scores):
-            if score is None:
-                score_cols[i+1].markdown("<div style='text-align:center; color:#999'>—</div>", unsafe_allow_html=True)
-            else:
-                color = "score-ok" if score > 0 else "score-zero"
-                score_cols[i+1].markdown(
-                    f"<div class='{color}' style='text-align:center; font-size:1.2rem'>{score}</div>",
-                    unsafe_allow_html=True
-                )
-        
-        # Checks - only when at least one player has both values filled
+
+            st.markdown("---")
+
+        # Checks
         valid_calls = [c for c in calls if c is not None]
         valid_scores = [s for s in scores if s is not None]
-        
+
         if len(valid_calls) > 0:
             sum_calls = sum(valid_calls)
-            
-            check_cols = st.columns(2)
-            
-            with check_cols[0]:
-                if sum_calls == cards:
-                    st.error(f"❌ جمع Callها ({sum_calls}) نباید مساوی {cards} باشد")
-                else:
-                    st.success(f"✓ جمع Callها = {sum_calls} (درست)")
-            
-            with check_cols[1]:
-                if len(valid_scores) == 0:
-                    st.info("هنوز امتیازی ثبت نشده")
-                elif 0 in valid_scores:
-                    st.success("✓ حداقل یک صفر وجود دارد")
-                else:
-                    st.error("❌ هیچ صفری وجود ندارد (احتمالاً اشتباه)")
+
+            if sum_calls == cards:
+                st.error(f"❌ جمع Bidها ({sum_calls}) نباید مساوی {cards} باشد")
+            else:
+                st.success(f"✓ جمع Bidها = {sum_calls} (درست)")
+
+            if len(valid_scores) == 0:
+                st.info("هنوز امتیازی ثبت نشده")
+            elif 0 in valid_scores:
+                st.success("✓ حداقل یک صفر وجود دارد")
+            else:
+                st.error("❌ هیچ صفری وجود ندارد (احتمالاً اشتباه)")
         else:
-            st.info("Call و Taken را وارد کنید")
+            st.info("Bid و Taken را وارد کنید")
 
 st.divider()
 
@@ -235,13 +232,7 @@ for i, (player, score) in enumerate(ranking):
         st.metric(label=f"{medal} {player}", value=f"{score} امتیاز")
 
 st.markdown("### جدول کامل")
-df_data = []
-for i, (player, score) in enumerate(ranking):
-    df_data.append({
-        "رتبه": i + 1,
-        "بازیکن": player,
-        "امتیاز نهایی": score
-    })
+df_data = [{"رتبه": i+1, "بازیکن": player, "امتیاز نهایی": score} for i, (player, score) in enumerate(ranking)]
 df = pd.DataFrame(df_data)
 st.dataframe(df, use_container_width=True, hide_index=True)
 
@@ -250,4 +241,4 @@ if st.button("🔄 شروع بازی جدید", type="primary", use_container_wi
     st.session_state.rounds_data = {}
     st.rerun()
 
-st.caption("ساخته شده برای بازی واشنگتن • نسخه ساده و کاربردی")
+st.caption("ساخته شده برای بازی واشنگتن")
